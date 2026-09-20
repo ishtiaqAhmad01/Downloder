@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Downloder — grab any video</title>
+<style>
+  :root {
+    /* Dark mode defaults */
+    --bg: #0f1117;
+    --card: #171a23;
+    --border: #2a2e3a;
+    --text: #e8e9ee;
+    --muted: #9aa0ae;
+    --accent: #5b8cff;
+    --accent-hover: #7ba0ff;
+  }
+  :root[data-theme="light"] {
+    --bg: #f7f8fa;
+    --card: #ffffff;
+    --border: #e5e7eb;
+    --text: #111827;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 16px;
+  }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  p.tagline { color: var(--muted); margin-top: 0; margin-bottom: 32px; }
+  .search-box {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    gap: 8px;
+  }
+  input[type="text"] {
+    flex: 1;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    font-size: 15px;
+    outline: none;
+  }
+  input[type="text"]:focus { border-color: var(--accent); }
+  button {
+    padding: 14px 22px;
+    border-radius: 10px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  button:hover { background: var(--accent-hover); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .icon-btn { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 0 16px; font-size: 18px; }
+  .icon-btn:hover { background: var(--border); }
+  .theme-toggle {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: transparent;
+    font-size: 20px;
+    padding: 8px;
+    border: none;
+    border-radius: 50%;
+  }
+  .theme-toggle:hover { background: var(--card); border: 1px solid var(--border); padding: 7px; }
+  .result {
+    width: 100%;
+    max-width: 640px;
+    margin-top: 28px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    display: none;
+  }
+  .result.visible { display: block; }
+  .meta { display: flex; gap: 14px; margin-bottom: 18px; }
+  .meta img {
+    width: 120px; height: 68px; object-fit: cover; border-radius: 8px;
+    background: #000;
+  }
+  .meta-text h3 { margin: 0 0 4px 0; font-size: 16px; }
+  .meta-text span { color: var(--muted); font-size: 13px; }
+  .format-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
+  .format-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px;
+  }
+  .format-row .label { font-size: 14px; }
+  .format-row .size { color: var(--muted); font-size: 12px; margin-left: 8px; }
+  .format-row button { padding: 8px 14px; font-size: 13px; }
+  .status { margin-top: 14px; font-size: 14px; color: var(--muted); min-height: 20px; }
+  .progress-container {
+    width: 100%; max-width: 640px; height: 6px; background: var(--border);
+    border-radius: 3px; margin-top: 14px; overflow: hidden; display: none;
+  }
+  .progress-container.visible { display: block; }
+  .progress-bar { height: 100%; width: 0%; background: var(--accent); transition: width 0.3s ease; }
+  .format-group { margin-top: 16px; margin-bottom: 8px; font-size: 14px; font-weight: 600; color: var(--accent); }
+  .error { color: #ff6b6b; }
+  footer { margin-top: 48px; color: var(--muted); font-size: 12px; text-align: center; max-width: 640px; }
+  
+  .recent-downloads { width: 100%; max-width: 640px; margin-top: 40px; display: none; }
+  .recent-downloads.visible { display: block; }
+  .recent-downloads h3 { font-size: 16px; margin-bottom: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .recent-row {
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .recent-row span { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 75%; }
+  .recent-row button { padding: 6px 12px; font-size: 13px; }
+</style>
+</head>
+<body>
+  <button id="themeToggle" class="theme-toggle">🌙</button>
+  <h1>Downloder</h1>
+  <p class="tagline">Paste a video link. Pick a quality. Download. No ads.</p>
+
+  <div class="search-box">
+    <input type="text" id="urlInput" placeholder="Paste video URL here..." />
+    <button id="pasteBtn" class="icon-btn" title="Paste from clipboard">📋</button>
+    <button id="fetchBtn">Fetch</button>
+  </div>
+  <div class="status" id="status"></div>
+  <div class="progress-container" id="progressContainer">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+
+  <div class="result" id="result">
+    <div class="meta">
+      <img id="thumb" src="" alt="" />
+      <div class="meta-text">
+        <h3 id="title"></h3>
+        <span id="sub"></span>
+      </div>
+    </div>
+    <div class="format-list" id="formatList"></div>
+  </div>
+
+  <div class="recent-downloads" id="recentDownloads">
+    <h3>Recent Downloads</h3>
+    <div id="recentList"></div>
+  </div>
+
+  <footer>
+    Personal-use tool. You're responsible for having the rights to any content you download.
+  </footer>
+
+<script>
+  // Point this at your deployed backend URL in production.
+  const API_BASE = window.API_BASE || "http://localhost:8000";
+
+  const urlInput = document.getElementById("urlInput");
+  const fetchBtn = document.getElementById("fetchBtn");
+  const pasteBtn = document.getElementById("pasteBtn");
+  const themeToggle = document.getElementById("themeToggle");
+  const statusEl = document.getElementById("status");
+  const resultEl = document.getElementById("result");
+  const thumbEl = document.getElementById("thumb");
+  const titleEl = document.getElementById("title");
+  const subEl = document.getElementById("sub");
+  const formatListEl = document.getElementById("formatList");
+  const progressContainer = document.getElementById("progressContainer");
+  const progressBar = document.getElementById("progressBar");
+  const recentDownloadsEl = document.getElementById("recentDownloads");
+  const recentListEl = document.getElementById("recentList");
+
+  let currentUrl = "";
+
+  function setStatus(msg, isError = false) {
+    statusEl.textContent = msg;
+    if (isError && msg.includes("429")) {
+      statusEl.textContent = "Whoa, slow down! Rate limit exceeded. Try again in a minute.";
+    }
+    statusEl.classList.toggle("error", isError);
+  }
+
+  function formatBytes(bytes) {
+    if (!bytes) return "";
+    const mb = bytes / (1024 * 1024);
+    return mb >= 1024 ? `${(mb / 1024).toFixed(2)} GB` : `${mb.toFixed(1)} MB`;
+  }
+
+  function formatDuration(seconds) {
+    if (!seconds) return "";
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+
+  // --- Theme ---
+  const savedTheme = localStorage.getItem("theme") || (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  document.documentElement.setAttribute("data-theme", savedTheme);
+  themeToggle.textContent = savedTheme === "light" ? "🌙" : "☀️";
+
+  themeToggle.addEventListener("click", () => {
+    const current = document.documentElement.getAttribute("data-theme");
+    const next = current === "light" ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", next);
+    localStorage.setItem("theme", next);
+    themeToggle.textContent = next === "light" ? "🌙" : "☀️";
+  });
+
+  // --- Clipboard Paste ---
+  pasteBtn.addEventListener("click", async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      urlInput.value = text;
+      analyze();
+    } catch (err) {
+      setStatus("Failed to read clipboard. Check permissions.", true);
+    }
+  });
+
+  // --- Recent History ---
+  function loadHistory() {
+    const history = JSON.parse(localStorage.getItem("recent_dl") || "[]");
+    if (history.length === 0) {
+      recentDownloadsEl.classList.remove("visible");
+      return;
+    }
+    recentDownloadsEl.classList.add("visible");
+    recentListEl.innerHTML = "";
+    history.forEach(item => {
+      const row = document.createElement("div");
+      row.className = "recent-row";
+      row.innerHTML = `<span><b>${item.title}</b> (${item.label})</span>`;
+      
+      const btn = document.createElement("button");
+      btn.textContent = "Re-fetch";
+      btn.onclick = () => {
+        urlInput.value = item.url;
+        analyze();
+      };
+      
+      row.appendChild(btn);
+      recentListEl.appendChild(row);
+    });
+  }
+  
+  function saveHistory(url, title, label) {
+    let history = JSON.parse(localStorage.getItem("recent_dl") || "[]");
+    // Remove if exists
+    history = history.filter(h => h.url !== url);
+    history.unshift({ url, title, label });
+    if (history.length > 5) history.pop();
+    localStorage.setItem("recent_dl", JSON.stringify(history));
+    loadHistory();
+  }
+
+  loadHistory();
+
+  async function analyze() {
+    const url = urlInput.value.trim();
+    if (!url) return;
+    currentUrl = url;
+    resultEl.classList.remove("visible");
+    fetchBtn.disabled = true;
+    setStatus("Fetching available qualities...");
+
+    try {
+      const res = await fetch(`${API_BASE}/api/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || `HTTP Error ${res.status}`);
+
+      titleEl.textContent = data.title;
+      subEl.textContent = [data.uploader, formatDuration(data.duration)].filter(Boolean).join(" · ");
+      thumbEl.src = data.thumbnail || "";
+
+      formatListEl.innerHTML = "";
+      
+      const groupLabels = {
+        "video+audio": "Video (with audio)",
+        "video only": "Video Only",
+        "audio only": "Audio Only"
+      };
+      
+      let currentGroup = "";
+
+      data.formats.forEach((f) => {
+        let group = "video+audio";
+        if (f.label.toLowerCase().includes("video only")) group = "video only";
+        else if (f.label.toLowerCase().includes("audio only")) group = "audio only";
+        
+        if (group !== currentGroup) {
+            const header = document.createElement("div");
+            header.className = "format-group";
+            header.textContent = groupLabels[group] || "Other";
+            formatListEl.appendChild(header);
+            currentGroup = group;
+        }
+
+        const row = document.createElement("div");
+        row.className = "format-row";
+        row.innerHTML = `
+          <span class="label">${f.label} <span class="size">${formatBytes(f.filesize_approx)}</span></span>
+        `;
+        const dlBtn = document.createElement("button");
+        dlBtn.textContent = "Download";
+        dlBtn.onclick = () => startDownload(f.format_id, dlBtn);
+        row.appendChild(dlBtn);
+        formatListEl.appendChild(row);
+      });
+
+      resultEl.classList.add("visible");
+      setStatus("");
+    } catch (err) {
+      setStatus(err.message, true);
+    } finally {
+      fetchBtn.disabled = false;
+    }
+  }
+
+  async function startDownload(formatId, btn) {
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = "Starting...";
+    setStatus("Initiating download...");
+    progressContainer.classList.remove("visible");
+    progressBar.style.width = "0%";
+
+    try {
+      const res = await fetch(`${API_BASE}/api/download`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: currentUrl, format_id: formatId }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || `HTTP Error ${res.status}`);
+      }
+      
+      const { job_id } = await res.json();
+      
+      btn.textContent = "Downloading...";
+      progressContainer.classList.add("visible");
+      
+      // Poll progress
+      while (true) {
+          await new Promise(r => setTimeout(r, 1000));
+          const progRes = await fetch(`${API_BASE}/api/progress/${job_id}`);
+          if (!progRes.ok) throw new Error("Failed to check progress");
+          const prog = await progRes.json();
+          
+          if (prog.status === "error") throw new Error(prog.error || "Download error");
+          
+          if (prog.status === "downloading") {
+              setStatus(`Downloading... ${prog.percent}% (ETA: ${prog.eta})`);
+              progressBar.style.width = `${prog.percent}%`;
+          } else if (prog.status === "processing") {
+              setStatus("Processing and merging audio/video...");
+              progressBar.style.width = "100%";
+          } else if (prog.status === "completed") {
+              progressBar.style.width = "100%";
+              setStatus("Download complete! Saving file...");
+              break;
+          }
+      }
+      
+      // Fetch the actual file
+      const fileRes = await fetch(`${API_BASE}/api/file/${job_id}`);
+      if (!fileRes.ok) throw new Error("Failed to retrieve file");
+      
+      const blob = await fileRes.blob();
+      const disposition = fileRes.headers.get("Content-Disposition") || "";
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const filename = match ? match[1] : "video.mp4";
+
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      
+      setStatus("Done!");
+      setTimeout(() => progressContainer.classList.remove("visible"), 2000);
+      
+      const formatLabel = Array.from(formatListEl.querySelectorAll('.format-row')).find(r => r.querySelector('button').onclick.toString().includes(formatId))?.querySelector('.label')?.textContent || "Downloaded";
+      saveHistory(currentUrl, titleEl.textContent, formatLabel.split('—')[0].trim());
+      
+    } catch (err) {
+      setStatus(err.message, true);
+      progressContainer.classList.remove("visible");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  }
+
+  fetchBtn.addEventListener("click", analyze);
+  urlInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") analyze();
+  });
+</script>
+</body>
+</html>

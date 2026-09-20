@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
+
+# MacOS
+.DS_Store
+
+# App specific
+downloads/
+*.mp4
+*.webm
+*.mkv
+
+# Internal docs (excluded for public repo)
+PRODUCT_BACKLOG.md
