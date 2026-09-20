@@ -59,6 +59,8 @@ app.add_middleware(
 class AnalyzeRequest(BaseModel):
     url: HttpUrl
 
+class CookiesRequest(BaseModel):
+    content: str
 
 class FormatInfo(BaseModel):
     format_id: str
@@ -101,7 +103,10 @@ def _base_ydl_opts() -> dict:
         'max_filesize': 2 * 1024 * 1024 * 1024,
     }
     
-    if os.path.exists("cookies.txt"):
+    cookie_path = DOWNLOAD_DIR / "cookies.txt"
+    if cookie_path.exists():
+        opts['cookiefile'] = str(cookie_path)
+    elif os.path.exists("cookies.txt"):
         opts['cookiefile'] = "cookies.txt"
         
     return opts
@@ -158,6 +163,12 @@ async def serve_frontend():
 async def health():
     return {"status": "ok"}
 
+@app.post("/api/cookies")
+async def save_cookies(req: CookiesRequest):
+    cookie_path = DOWNLOAD_DIR / "cookies.txt"
+    with open(cookie_path, "w", encoding="utf-8") as f:
+        f.write(req.content)
+    return {"status": "saved"}
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
 @limiter.limit("5/minute")
@@ -320,7 +331,10 @@ async def download(req: DownloadRequest, request: Request):
         "max_filesize": 2000 * 1024 * 1024,  # 2GB limit
     }
     
-    if os.path.exists("cookies.txt"):
+    cookie_path = DOWNLOAD_DIR / "cookies.txt"
+    if cookie_path.exists():
+        ydl_opts['cookiefile'] = str(cookie_path)
+    elif os.path.exists("cookies.txt"):
         ydl_opts['cookiefile'] = "cookies.txt"
 
     def run_download():

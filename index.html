@@ -126,9 +126,31 @@
   }
   .recent-row span { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 75%; }
   .recent-row button { padding: 6px 12px; font-size: 13px; }
+  
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.5); display: none; justify-content: center; align-items: center; z-index: 100;
+  }
+  .modal-overlay.visible { display: flex; }
+  .modal {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 24px; width: 90%; max-width: 500px;
+  }
+  .modal h2 { margin-top: 0; margin-bottom: 12px; font-size: 20px; }
+  .modal p { color: var(--muted); font-size: 14px; margin-bottom: 16px; line-height: 1.4; }
+  .modal textarea {
+    width: 100%; height: 150px; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; padding: 12px;
+    font-family: monospace; font-size: 12px; margin-bottom: 16px; resize: vertical; outline: none;
+  }
+  .modal textarea:focus { border-color: var(--accent); }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 12px; }
+  .modal-actions button.secondary { background: var(--border); color: var(--text); }
+  .modal-actions button.secondary:hover { opacity: 0.8; }
 </style>
 </head>
 <body>
+  <button id="settingsToggle" class="theme-toggle" style="right: 56px;" title="Settings">⚙️</button>
   <button id="themeToggle" class="theme-toggle">🌙</button>
   <h1>Downloder</h1>
   <p class="tagline">Paste a video link. Pick a quality. Download. No ads.</p>
@@ -162,6 +184,18 @@
   <footer>
     Personal-use tool. You're responsible for having the rights to any content you download.
   </footer>
+  
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+      <h2>Settings</h2>
+      <p>If YouTube blocks downloads ("Sign in to confirm you're not a bot"), paste the contents of your YouTube <code>cookies.txt</code> file here. <a href="https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp" target="_blank" style="color: var(--accent);">Learn how to get this</a>.</p>
+      <textarea id="cookiesInput" placeholder="# Netscape HTTP Cookie File..."></textarea>
+      <div class="modal-actions">
+        <button class="secondary" id="closeSettingsBtn">Cancel</button>
+        <button id="saveCookiesBtn">Save Cookies</button>
+      </div>
+    </div>
+  </div>
 
 <script>
   // The backend now serves the frontend natively, so we can use relative paths!
@@ -180,6 +214,12 @@
   const progressBar = document.getElementById("progressBar");
   const recentDownloadsEl = document.getElementById("recentDownloads");
   const recentListEl = document.getElementById("recentList");
+  
+  const settingsToggle = document.getElementById("settingsToggle");
+  const settingsModal = document.getElementById("settingsModal");
+  const closeSettingsBtn = document.getElementById("closeSettingsBtn");
+  const saveCookiesBtn = document.getElementById("saveCookiesBtn");
+  const cookiesInput = document.getElementById("cookiesInput");
 
   let currentUrl = "";
 
@@ -411,6 +451,37 @@
   fetchBtn.addEventListener("click", analyze);
   urlInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") analyze();
+  });
+  
+  // --- Settings Modal ---
+  settingsToggle.addEventListener("click", () => {
+    cookiesInput.value = "";
+    settingsModal.classList.add("visible");
+  });
+  closeSettingsBtn.addEventListener("click", () => {
+    settingsModal.classList.remove("visible");
+  });
+  saveCookiesBtn.addEventListener("click", async () => {
+    const content = cookiesInput.value.trim();
+    if (!content) return;
+    
+    saveCookiesBtn.disabled = true;
+    saveCookiesBtn.textContent = "Saving...";
+    try {
+      const res = await fetch("/api/cookies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content })
+      });
+      if (!res.ok) throw new Error("Failed to save cookies");
+      settingsModal.classList.remove("visible");
+      setStatus("Cookies saved successfully. Try downloading again.");
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      saveCookiesBtn.disabled = false;
+      saveCookiesBtn.textContent = "Save Cookies";
+    }
   });
 </script>
 </body>
