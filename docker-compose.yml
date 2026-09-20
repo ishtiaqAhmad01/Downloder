@@ -2,7 +2,7 @@ services:
   downloader:
     build: .
     ports:
-      - "8000:8000"
+      - "80:8000"
     restart: unless-stopped
     volumes:
       - ./downloads:/app/downloads
