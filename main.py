@@ -92,14 +92,18 @@ class DownloadResponse(BaseModel):
 # ---------- Helpers ----------
 
 def _base_ydl_opts() -> dict:
-    return {
-        "quiet": True,
-        "no_warnings": True,
-        "noplaylist": True,
-        "skip_download": True,
-        "extractor_args": {"youtube": ["player_client=ios,android,web"]},
-        "max_filesize": 2000 * 1024 * 1024,  # 2GB limit
+    opts = {
+        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+        'quiet': True,
+        'no_warnings': True,
+        'extractor_args': {'youtube': {'player_client': ['ios', 'android', 'web']}},
+        'max_filesize': 2 * 1024 * 1024 * 1024,
     }
+    
+    if os.path.exists("cookies.txt"):
+        opts['cookiefile'] = "cookies.txt"
+        
+    return opts
 
 
 def _has_video(f: dict) -> bool:
@@ -314,6 +318,9 @@ async def download(req: DownloadRequest, request: Request):
         "rm_cachedir": True,
         "max_filesize": 2000 * 1024 * 1024,  # 2GB limit
     }
+    
+    if os.path.exists("cookies.txt"):
+        ydl_opts['cookiefile'] = "cookies.txt"
 
     def run_download():
         try:
