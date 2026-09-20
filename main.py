@@ -93,9 +93,10 @@ class DownloadResponse(BaseModel):
 
 def _base_ydl_opts() -> dict:
     opts = {
-        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
         'quiet': True,
         'no_warnings': True,
+        'noplaylist': True,
+        'skip_download': True,
         'extractor_args': {'youtube': {'player_client': ['ios', 'android', 'web']}},
         'max_filesize': 2 * 1024 * 1024 * 1024,
     }
