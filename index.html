@@ -164,8 +164,7 @@
   </footer>
 
 <script>
-  // Point this at your deployed backend URL in production.
-  const API_BASE = window.API_BASE || "http://localhost:8000";
+  // The backend now serves the frontend natively, so we can use relative paths!
 
   const urlInput = document.getElementById("urlInput");
   const fetchBtn = document.getElementById("fetchBtn");
@@ -276,7 +275,7 @@
     setStatus("Fetching available qualities...");
 
     try {
-      const res = await fetch(`${API_BASE}/api/analyze`, {
+      const res = await fetch(`/api/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
@@ -341,7 +340,7 @@
     progressBar.style.width = "0%";
 
     try {
-      const res = await fetch(`${API_BASE}/api/download`, {
+      const res = await fetch(`/api/download`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: currentUrl, format_id: formatId }),
@@ -359,7 +358,7 @@
       // Poll progress
       while (true) {
           await new Promise(r => setTimeout(r, 1000));
-          const progRes = await fetch(`${API_BASE}/api/progress/${job_id}`);
+          const progRes = await fetch(`/api/progress/${job_id}`);
           if (!progRes.ok) throw new Error("Failed to check progress");
           const prog = await progRes.json();
           
@@ -379,7 +378,7 @@
       }
       
       // Fetch the actual file
-      const fileRes = await fetch(`${API_BASE}/api/file/${job_id}`);
+      const fileRes = await fetch(`/api/file/${job_id}`);
       if (!fileRes.ok) throw new Error("Failed to retrieve file");
       
       const blob = await fileRes.blob();
