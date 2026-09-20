@@ -8,7 +8,7 @@ Wraps yt-dlp to:
 
 Requires: ffmpeg installed on the host (see Dockerfile).
 """
-
+import os
 import re
 import shutil
 import uuid
